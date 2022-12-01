@@ -2,6 +2,8 @@ library("readxl")
 library("GGally")
 library("ggplot2")
 library("MASS")
+library("ggstatplot")
+install.packages("ggstatsplot")
 data = read_excel('~/git/RegressionCaseStudy/data/BrownFat.xls')
 
 data = subset(data, select = -c(1, 21, 23))
@@ -109,7 +111,36 @@ plot(dffits(fit), type = 'h')
 abline(h = thresh, lty = 2)
 abline(h = -thresh, lty = 2)
 
+boxplot(ed)$out
+# use this to remove outliers
+# https://www.r-bloggers.com/2020/01/how-to-remove-outliers-in-r/
+
 
 # NO colinearrity since the significant t values and corr matrix
 summary(fit)
 ggpairs(subset(data, select = c(1, 2, 3, 11, 17, 6, 13)))
+
+
+ed = data.frame(cbind(X1, X2, X3, X5, X9, X12, X16))
+
+
+# chekc for normality of data
+qqPlot(data)
+
+
+
+# if not normal : box cox transf
+
+
+# Checking for unequal variance
+ed$resid = rstandard(fit)
+ggplot(data=ed, aes(X1, resid, col="red")) + geom_point() + geom_smooth(method = "lm", se=FALSE)
+ggplot(data=ed, aes(X2, resid, col="red")) + geom_point() + geom_smooth(method = "lm", se=FALSE)
+ggplot(data=ed, aes(X3, resid, col="red")) + geom_point() + geom_smooth(method = "lm", se=FALSE)
+ggplot(data=ed, aes(X5, resid, col="red")) + geom_point() + geom_smooth(method = "lm", se=FALSE)
+ggplot(data=ed, aes(X9, resid, col="red")) + geom_point() + geom_smooth(method = "lm", se=FALSE)
+ggplot(data=ed, aes(X12, resid, col="red")) + geom_point() + geom_smooth(method = "lm", se=FALSE)
+ggplot(data=ed, aes(X16, resid, col="red")) + geom_point() + geom_smooth(method = "lm", se=FALSE)
+
+
+# if we have unequal variances : use WLS (lec 21)
