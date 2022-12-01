@@ -1,4 +1,6 @@
 library("readxl")
+library("GGally")
+library("ggplot2")
 
 data = read_excel('~/git/RegressionCaseStudy/data/BrownFat.xls')
 
@@ -32,44 +34,26 @@ ct17 = as.numeric(data$Cancer_Type == 17)
 b = as.numeric(data$BrownFat == 1)
 # No brown fat is the base category
 
+# Excluding some visible outliers
+data = subset(data, data$Age > 17)
+data = subset(data, data$Weigth > 25)
+data = subset(data, data$Weigth < 175)
+data = subset(data, data$Size > 125)
+
+ggpairs(subset(data, select = c(6, 7, 8, 9, 10, 20)))
+# Removing highly correlated temparatures
+data = subset(data, select = -c(6, 7, 8, 10))
+# Removin size and weight, check for colinearrity of size and weight and each
+# in relation to the response variable
+
+ggpairs(subset(data, select = c(9, 10, 11, 13, 2, 12, 16)))
+# Removing size and weight
+data = subset(data, select = -c(9, 10))
+
+# Removing cancer status : redundant 
+data = subset(data, select = -c(12))
 
 
-ggplot(my_data, aes(x = age)) +
-  geom_bar()
 
-
-myData = subset(exceldata, exceldata$Age > 17)
-
-ggplot(myData) + 
-  geom_histogram(mapping = aes(x = Age), binwidth = 0.5) +
-  coord_cartesian(ylim = c(0, 25))
-
-
-ggplot(exceldata) + 
-  geom_histogram(mapping = aes(x = Ext_Temp), binwidth = 0.5) +
-  coord_cartesian(ylim = c(0, 50))
-
-
-myData_ = subset(myData, myData$Weigth > 25)
-myData = subset(myData_, myData_$Weigth < 175)
-ggplot(myData) + 
-  geom_histogram(mapping = aes(x = Weigth), binwidth = 0.5) +
-  coord_cartesian(ylim = c(0, 50))
-
-
-myData_ = subset(myData, myData$Size > 125)
-ggplot(myData_) + 
-  geom_histogram(mapping = aes(x = Size), binwidth = 0.5) +
-  coord_cartesian(ylim = c(0, 100))
-
-
-ggplot(myData_) + 
-  geom_histogram(mapping = aes(x = BMI), binwidth = 0.5) +
-  coord_cartesian(ylim = c(0, 50))
-
-
-ggplot(myData_) + 
-  geom_histogram(mapping = aes(x = LBW), binwidth = 0.5) +
-  coord_cartesian(ylim = c(0, 50))
-
-
+# Reomving day and month since it is not related for prediction
+ggpairs(subset(data, select = c(4, 13)))
