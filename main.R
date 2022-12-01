@@ -29,8 +29,7 @@ ct13 = as.numeric(data$Cancer_Type == 13)
 ct14 = as.numeric(data$Cancer_Type == 14)
 ct15 = as.numeric(data$Cancer_Type == 15)
 ct16 = as.numeric(data$Cancer_Type == 16)
-ct17 = as.numeric(data$Cancer_Type == 17)
-# No is the base category
+# Other is the base category
 b = as.numeric(data$BrownFat == 1)
 # No brown fat is the base category
 
@@ -53,7 +52,7 @@ data = subset(data, select = -c(9, 10))
 # Removing cancer status : redundant 
 data = subset(data, select = -c(12))
 
+# Reomveing day and month since it is not related for prediction
+data = subset(data, select = -c(4, 5))
 
-
-# Reomving day and month since it is not related for prediction
-ggpairs(subset(data, select = c(4, 13)))
+ggpairs(subset(data, select = c(4, 5, 6)))
