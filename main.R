@@ -31,3 +31,45 @@ ct17 = as.numeric(data$Cancer_Type == 17)
 # No is the base category
 b = as.numeric(data$BrownFat == 1)
 # No brown fat is the base category
+
+
+
+ggplot(my_data, aes(x = age)) +
+  geom_bar()
+
+
+myData = subset(exceldata, exceldata$Age > 17)
+
+ggplot(myData) + 
+  geom_histogram(mapping = aes(x = Age), binwidth = 0.5) +
+  coord_cartesian(ylim = c(0, 25))
+
+
+ggplot(exceldata) + 
+  geom_histogram(mapping = aes(x = Ext_Temp), binwidth = 0.5) +
+  coord_cartesian(ylim = c(0, 50))
+
+
+myData_ = subset(myData, myData$Weigth > 25)
+myData = subset(myData_, myData_$Weigth < 175)
+ggplot(myData) + 
+  geom_histogram(mapping = aes(x = Weigth), binwidth = 0.5) +
+  coord_cartesian(ylim = c(0, 50))
+
+
+myData_ = subset(myData, myData$Size > 125)
+ggplot(myData_) + 
+  geom_histogram(mapping = aes(x = Size), binwidth = 0.5) +
+  coord_cartesian(ylim = c(0, 100))
+
+
+ggplot(myData_) + 
+  geom_histogram(mapping = aes(x = BMI), binwidth = 0.5) +
+  coord_cartesian(ylim = c(0, 50))
+
+
+ggplot(myData_) + 
+  geom_histogram(mapping = aes(x = LBW), binwidth = 0.5) +
+  coord_cartesian(ylim = c(0, 50))
+
+
