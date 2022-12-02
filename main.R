@@ -125,7 +125,7 @@ X2 = ed$Diabetes
 X3 = ed$Age 
 X9 = ed$LBW 
 X12 = ed$Ext_Temp
-X16 = ed$Weigth
+X16 = ed$Weight
 Y = ed$BrownFat
 # fit the model without outliers
 fit = lm(Y ~X3 + X9 + X12 + factor(X2) + factor(X1) + X16)
