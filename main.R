@@ -2,8 +2,8 @@ library("readxl")
 library("GGally")
 library("ggplot2")
 library("MASS")
-library("ggstatplot")
-install.packages("ggstatsplot")
+library("ggstatsplot")
+
 data = read_excel('~/git/RegressionCaseStudy/data/BrownFat.xls')
 
 data = subset(data, select = -c(1, 21, 23))
@@ -32,6 +32,7 @@ ct14 = as.numeric(data$Cancer_Type == 14)
 ct15 = as.numeric(data$Cancer_Type == 15)
 ct16 = as.numeric(data$Cancer_Type == 16)
 # Other is the base category
+
 b = as.numeric(data$BrownFat == 1)
 # No brown fat is the base category
 
@@ -79,9 +80,8 @@ X16 = data$Weigth
 X17 = data$Size
 
 fit0 <- lm(Y ~ X1 + X2 +X3 +X4 +X5 +X6 +X7 +X8 +X9 +X10 +X11 +X12 +X13 +X14 +X15 +X16 +X17) 
-anova(fit0)
-drop1(fit0, test = "F")
-# Testing 
+
+# Model selection 
 fit1 = lm(Y ~ X1 + X2 +X3 +X4 +X5 +X6 +X7 +X8 +X9 +X10 +X11 +X12 +X13 +X14 +X15 +X16 +X17) 
 stepAIC(fit1, direction = "backward")
 fit2 <- lm(Y ~ 1)
@@ -91,7 +91,9 @@ stepAIC(fit2, direction = "both", scope = list(upper = fit1, lower = fit2))
 
 # Final model : Y ~ X3 + X9 + X12 + X2 + X1 + X16 + X5
 fit = lm(Y ~ X3 + X9 + X12 + X2 + X1 + X16 + X5)
-# Test between categorical and interaction model
+
+ed = data.frame(cbind(Sex = X1, Diabetes = X2, Age = X3, Season = X5, LBW = X9, Ext_Temp = X12, Weight = X16, BrownFat = Y))
+
 
 dffits <- as.data.frame(dffits(fit))
 
@@ -111,9 +113,56 @@ plot(dffits(fit), type = 'h')
 abline(h = thresh, lty = 2)
 abline(h = -thresh, lty = 2)
 
-boxplot(ed)$out
-# use this to remove outliers
-# https://www.r-bloggers.com/2020/01/how-to-remove-outliers-in-r/
+boxplot(X3)$out
+# or
+ggbetweenstats(data = ed, Age, BrownFat, outlier.tagging = TRUE)
+
+Q <- quantile(X3, probs=c(.25, .75), na.rm = FALSE)
+iqr <- IQR(X3)
+up <-  Q[2]+1.5*iqr # Upper Range  
+low<- Q[1]-1.5*iqr # Lower Range
+X3<- subset(X3, X3 > (Q[1] - 1.5*iqr) & X3 < (Q[2]+1.5*iqr))
+boxplot(X3)$out
+
+boxplot(X9)$out
+# or
+ggbetweenstats(data = ed, LBW, BrownFat, outlier.tagging = TRUE)
+
+Q <- quantile(X9, probs=c(.25, .75), na.rm = FALSE)
+iqr <- IQR(X9)
+up <-  Q[2]+1.5*iqr # Upper Range  
+low<- Q[1]-1.5*iqr # Lower Range
+X9<- subset(X9, X9 > (Q[1] - 1.5*iqr) & X9 < (Q[2]+1.5*iqr))
+boxplot(X9)$out
+
+
+boxplot(X12)$out
+# or
+ggbetweenstats(data = ed, Ext_Temp, BrownFat, outlier.tagging = TRUE)
+
+Q <- quantile(X12, probs=c(.25, .75), na.rm = FALSE)
+iqr <- IQR(X12)
+up <-  Q[2]+1.5*iqr # Upper Range  
+low<- Q[1]-1.5*iqr # Lower Range
+X12<- subset(X12, X12 > (Q[1] - 1.5*iqr) & X12 < (Q[2]+1.5*iqr))
+boxplot(X12)$out
+
+
+
+boxplot(X16)$out
+# or
+ggbetweenstats(data = ed, Weight, BrownFat, outlier.tagging = TRUE)
+
+Q <- quantile(X16, probs=c(.25, .75), na.rm = FALSE)
+iqr <- IQR(X16)
+up <-  Q[2]+1.5*iqr # Upper Range  
+low<- Q[1]-1.5*iqr # Lower Range
+X16<- subset(X16, X16 > (Q[1] - 1.5*iqr) & X16 < (Q[2]+1.5*iqr))
+boxplot(X16)$out
+
+# fit the model without outliers
+fit = lm(Y ~ X3 + X9 + X12 + X2 + X1 + X16 + X5)
+
 
 
 # NO colinearrity since the significant t values and corr matrix
@@ -121,10 +170,17 @@ summary(fit)
 ggpairs(subset(data, select = c(1, 2, 3, 11, 17, 6, 13)))
 
 
-ed = data.frame(cbind(X1, X2, X3, X5, X9, X12, X16))
+
+# Check for interaction terms
+fit.inter =  lm(Y ~ (X3 + X9 + X12 + X2 + X1 + X16 + X5)^2)
+anova(lm.fit2)
 
 
-# chekc for normality of data
+
+
+
+
+# check for normality of data
 qqPlot(data)
 
 
