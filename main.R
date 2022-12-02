@@ -8,8 +8,6 @@ library("ggpubr")
 library("olsrr")
 library("caret")
 library("Fgmutils")
-library(tidyverse)          # Pipe operator (%>%) and other commands
-library(broom)              # Diagnostic Metric Table (augment)
 
 data = read_excel('~/git/RegressionCaseStudy/data/BrownFat.xls')
 
@@ -235,3 +233,5 @@ data.frame( R2 = R2(prediction, test.data$BrownFat),
             MAE = MAE(prediction, test.data$BrownFat)
             # ,MSPR = mspr(test.data$BrownFat ,prediction, dim(test.data)[1] )
             )
+
+# All in all, there seem to be other factors effecting brown fat
