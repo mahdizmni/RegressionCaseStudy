@@ -35,7 +35,7 @@ X17 = data$Size
 
 fit0 <- lm(Y ~ factor(X1) + factor(X2) +X3 +X4 +factor(X5) +X6 +X7 +X8 +X9 +factor(X10) +factor(X11) +X12 +X13 +X14 +X15 +X16 +X17)
 
-# Model selection 
+## Model selection 
 fit1 <- lm(Y ~ factor(X1) + factor(X2) +X3 +X4 +factor(X5) +X6 +X7 +X8 +X9 +factor(X10) +factor(X11) +X12 +X13 +X14 +X15 +X16 +X17)
 fit2 <- lm(Y ~ 1)
 
@@ -44,6 +44,7 @@ stepAIC(fit2, direction = "both", scope = list(upper = fit1, lower = fit2))
 # Final model 
 fit = lm(Y ~X3 + X9 + X12 + factor(X2) + factor(X1) + X16 + X13 + X14 + X15)
 
+# Effective data
 ed = data.frame(cbind(Sex = X1, Diabetes = X2, Age = X3, LBW = X9, Ext_Temp = X12, Weight = X16, BrownFat = Y))
 
 
@@ -134,7 +135,6 @@ fit = lm(Y ~X3 + X9 + X12 + factor(X2) + factor(X1) + X16)
 fit.inter = lm(Y ~ (X3 + X9 + X12 + factor(X2) + factor(X1) + X16)^2)
 anova(fit.inter)
 # interaction terms are not significant and seem to complicate the model, so we decide not to add them
-
 
 
 ## Checking for unequal variance
