@@ -7,6 +7,9 @@ library("car")
 library("ggpubr")
 library("olsrr")
 library("caret")
+library("Fgmutils")
+library(tidyverse)          # Pipe operator (%>%) and other commands
+library(broom)              # Diagnostic Metric Table (augment)
 
 data = read_excel('~/git/RegressionCaseStudy/data/BrownFat.xls')
 
@@ -120,6 +123,9 @@ ggpairs(subset(data, select = c(3, 17, 6, 10, 13, 19)))
 fit = lm(Y ~X3 + X9 + X17 + X15)
 summary(fit)
 
+# VIF test
+
+
 # Effective data
 ed = data.frame(cbind(Age = X3, LBW = X9, Weight = X17, `1M_Temp` = X15, BrownFat = Y))
 
@@ -220,3 +226,10 @@ ggplot(data=ed, aes(X16, resid, col="red")) + geom_point() + geom_smooth(method 
 
 
 # Prediction on testset----------------------
+prediction = fit %>% predict(test.data)
+
+# Checking performance by calculating R2 , RMSE and MAE
+data.frame( R2 = R2(prediction, test.data$BrownFat),
+            RMSE = RMSE(prediction, test.data$BrownFat),
+            MAE = MAE(prediction, test.data$BrownFat),
+            MSPR = mspr(test.data$BrownFat ,prediction, dim(test.data)[1] ))
