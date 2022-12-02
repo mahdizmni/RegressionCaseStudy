@@ -59,6 +59,34 @@ data = subset(data, select = -c(18))
 #data = subset(data, select = -c(4, 5))
 
 #ggpairs(subset(data, select = c(4, 5, 6, 11)))
+Q <- quantile(data$Age , probs=c(.25, .75), na.rm = FALSE)
+iqr <- IQR(data$Age )
+up <-  Q[2]+1.5*iqr # Upper Range  
+low<- Q[1]-1.5*iqr # Lower Range
+data<- subset(data, data$Age  > (Q[1] - 1.5*iqr) & data$Age  < (Q[2]+1.5*iqr))
+boxplot(data$Age )$out
+
+boxplot(data$Weigth)$out
+
+
+Q <- quantile(data$Weigth, probs=c(.25, .75), na.rm = FALSE)
+iqr <- IQR(data$Weigth)
+up <-  Q[2]+1.5*iqr # Upper Range  
+low<- Q[1]-1.5*iqr # Lower Range
+data<- subset(data, data$Weigth > (Q[1] - 1.5*iqr) & data$Weigth < (Q[2]+1.5*iqr))
+boxplot(data$Weigth)$out
+
+
+boxplot(data$BMI)$out
+Q <- quantile(data$BMI, probs=c(.25, .75), na.rm = FALSE)
+iqr <- IQR(data$BMI)
+up <-  Q[2]+1.5*iqr # Upper Range  
+low<- Q[1]-1.5*iqr # Lower Range
+data<- subset(data, data$BMI > (Q[1] - 1.5*iqr) & data$BMI < (Q[2]+1.5*iqr))
+boxplot(data$BMI)$out
+
+
+
 
 Y = data$BrownFat
 X1 = data$Sex
@@ -113,52 +141,7 @@ plot(dffits(fit), type = 'h')
 abline(h = thresh, lty = 2)
 abline(h = -thresh, lty = 2)
 
-boxplot(X3)$out
-# or
-ggbetweenstats(data = ed, Age, BrownFat, outlier.tagging = TRUE)
 
-Q <- quantile(X3, probs=c(.25, .75), na.rm = FALSE)
-iqr <- IQR(X3)
-up <-  Q[2]+1.5*iqr # Upper Range  
-low<- Q[1]-1.5*iqr # Lower Range
-X3<- subset(X3, X3 > (Q[1] - 1.5*iqr) & X3 < (Q[2]+1.5*iqr))
-boxplot(X3)$out
-
-boxplot(X9)$out
-# or
-ggbetweenstats(data = ed, LBW, BrownFat, outlier.tagging = TRUE)
-
-Q <- quantile(X9, probs=c(.25, .75), na.rm = FALSE)
-iqr <- IQR(X9)
-up <-  Q[2]+1.5*iqr # Upper Range  
-low<- Q[1]-1.5*iqr # Lower Range
-X9<- subset(X9, X9 > (Q[1] - 1.5*iqr) & X9 < (Q[2]+1.5*iqr))
-boxplot(X9)$out
-
-
-boxplot(X12)$out
-# or
-ggbetweenstats(data = ed, Ext_Temp, BrownFat, outlier.tagging = TRUE)
-
-Q <- quantile(X12, probs=c(.25, .75), na.rm = FALSE)
-iqr <- IQR(X12)
-up <-  Q[2]+1.5*iqr # Upper Range  
-low<- Q[1]-1.5*iqr # Lower Range
-X12<- subset(X12, X12 > (Q[1] - 1.5*iqr) & X12 < (Q[2]+1.5*iqr))
-boxplot(X12)$out
-
-
-
-boxplot(X16)$out
-# or
-ggbetweenstats(data = ed, Weight, BrownFat, outlier.tagging = TRUE)
-
-Q <- quantile(X16, probs=c(.25, .75), na.rm = FALSE)
-iqr <- IQR(X16)
-up <-  Q[2]+1.5*iqr # Upper Range  
-low<- Q[1]-1.5*iqr # Lower Range
-X16<- subset(X16, X16 > (Q[1] - 1.5*iqr) & X16 < (Q[2]+1.5*iqr))
-boxplot(X16)$out
 
 # fit the model without outliers
 fit = lm(Y ~ X3 + X9 + X12 + X2 + X1 + X16 + X5)
