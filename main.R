@@ -123,6 +123,11 @@ summary(fit)
 # Effective data
 ed = data.frame(cbind(Age = X3, LBW = X9, Weight = X17, `1M_Temp` = X15, BrownFat = Y))
 
+# Check for interaction terms
+fit.inter = lm(Y ~ (X3 + X9 + X12 + factor(X2) + factor(X1) + X16)^2)
+anova(fit.inter)
+# interaction terms are not significant and seem to complicate the model, so we decide not to add them
+
 
 # Checking Assumptions ------------------------------------
 
@@ -155,11 +160,17 @@ hist(fit$residuals)
 
 
 # Try Polynomial model--------------------
-pm = lm(Y ~ polym(X3, X9, X17, X15, degree=4, raw=TRUE))        # shift resoponse since 1/0 is undefined
+pm = lm(Y + 1~ polym(X3, X9, X17, X15, degree=3, raw=TRUE))        # shift resoponse since 1/0 is undefined
 summary(pm)
 # Multiple R-squared keep increasing as we increase the degree (danger of overfitting)
 
-## Normality of errors
+# box cox suggest to use lambda = -2 
+result = boxcox(pm)
+lambda = result$x[which.max(result$y)]
+fit = lm(((Y+1) ^ lambda - 1)/lambda ~polym(X3, X9, X17, X15, degree=3, raw=TRUE))
+summary(fit)
+#
+## Normality of errors (Still bad)
 res = resid(pm)
 
 #produce residual vs. fitted plot
@@ -169,10 +180,23 @@ plot(fitted(pm), res)
 abline(0,0)
 
 
-# Removing outliers
+# Linearity Assumption
+plot(pm ,1)
 
-## Outliers
-# Graphical representations
+# Homoscedasticity Assumption 
+ols_test_score(pm)
+
+# Autocorrelation Assumption 
+durbinWatsonTest(pm)
+
+# Normality Assumption
+shapiro.test(pm$residuals)
+
+# Multicolinearity Assumption
+vif(pm)
+
+
+# Graphical representations of Influencial points
 ols_plot_cooksd_char(fit)
 ols_plot_dfbetas(fit)
 ols_plot_dffits(fit)
@@ -180,42 +204,6 @@ p1 -> ols_plot_cooksd_char(fit)
 p2 -> ols_plot_dffits(fit)
 ggarrange(p1, p2, ncol=2, nrow=1)
 
-boxplot(ed)
-# a lot in age and weight 
-
-
-# Removing outliers from Age 
-quartiles <- quantile(ed$Age, probs=c(.25, .75), na.rm = FALSE)
-IQR <- IQR(ed$Age)
-
-Lower <- quartiles[1] - 1.5*IQR
-Upper <- quartiles[2] + 1.5*IQR 
-
-ed = subset(ed, ed$Age > Lower & ed$Age < Upper)
-# Removing outliers from Weight 
-quartiles <- quantile(ed$Weight , probs=c(.25, .75), na.rm = FALSE)
-IQR <- IQR(ed$Weight)
-
-Lower <- quartiles[1] - 1.5*IQR
-Upper <- quartiles[2] + 1.5*IQR 
-
-ed = subset(ed, ed$Weight > Lower & ed$Weight < Upper)
-# After
-boxplot(ed)
-X1 = ed$Sex
-X2 = ed$Diabetes 
-X3 = ed$Age 
-X9 = ed$LBW 
-X12 = ed$Ext_Temp
-X16 = ed$Weight
-Y = ed$BrownFat + 1
-# fit the model without outliers
-fit = lm(Y ~X3 + X9 + X12 + factor(X2) + factor(X1) + X16)
-summary(fit)
-## Check for interaction terms
-fit.inter = lm(Y ~ (X3 + X9 + X12 + factor(X2) + factor(X1) + X16)^2)
-anova(fit.inter)
-# interaction terms are not significant and seem to complicate the model, so we decide not to add them
 
 
 ## Checking for unequal variance
@@ -228,5 +216,7 @@ ggplot(data=ed, aes(X9, resid, col="red")) + geom_point() + geom_smooth(method =
 ggplot(data=ed, aes(X12, resid, col="red")) + geom_point() + geom_smooth(method = "lm", se=FALSE)
 ggplot(data=ed, aes(X16, resid, col="red")) + geom_point() + geom_smooth(method = "lm", se=FALSE)
 
+# Seem to have equal variance, no need to do WLS to complicate model more
 
-# if we have unequal variances : use WLS (lec 21)
+
+# Prediction on testset----------------------
