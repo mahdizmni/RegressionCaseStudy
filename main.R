@@ -6,6 +6,7 @@ library("ggstatsplot")
 library("car")
 library("ggpubr")
 library("olsrr")
+library("caret")
 
 data = read_excel('~/git/RegressionCaseStudy/data/BrownFat.xls')
 
@@ -14,54 +15,116 @@ data = subset(data, select = -c(1, 21, 23))
 # Removing cancer status : redundant 
 data = subset(data, select = -c(18))
 
-Y = data$BrownFat
-X1 = data$Sex
-X2 = data$Diabetes 
-X3 = data$Age 
-X4 = data$`7D_Temp`
-X5 = data$Season 
-X6 = data$Duration_Sunshine
-X7 = data$BMI 
-X8 = data$Glycemy 
-X9 = data$LBW 
-X10 = data$Cancer_Type 
-X11 = data$Month
-X12 = data$Ext_Temp
-X13 = data$`2D_Temp`
-X14 = data$`3D_Temp`
-X15 = data$`1M_Temp`
-X16 = data$Weigth
-X17 = data$Size
 
-fit0 <- lm(Y ~ factor(X1) + factor(X2) +X3 +X4 +factor(X5) +X6 +X7 +X8 +X9 +factor(X10) +factor(X11) +X12 +X13 +X14 +X15 +X16 +X17)
+# Removing outliers----------------------
 
-## Model selection 
-fit1 <- lm(Y ~ factor(X1) + factor(X2) +X3 +X4 +factor(X5) +X6 +X7 +X8 +X9 +factor(X10) +factor(X11) +X12 +X13 +X14 +X15 +X16 +X17)
+boxplot(data$Sex)
+
+
+boxplot(data$Diabetes)
+data <- data[-which(data$Diabetes %in% boxplot.stats(data$Diabetes)$out), ]
+boxplot(data$Diabetes)
+
+boxplot(data$Age)
+data <- data[-which(data$Age %in% boxplot.stats(data$Age)$out), ]
+boxplot(data$Age)
+
+boxplot(data$`7D_Temp`)
+data <- data[-which(data$`7D_Temp` %in% boxplot.stats(data$`7D_Temp`)$out), ]
+boxplot(data$`7D_Temp`)
+
+
+boxplot(data$Season, data = data)
+
+boxplot(data$Duration_Sunshine, data = data)
+
+boxplot(data$BMI, data = data)
+data <- data[-which(data$BMI %in% boxplot.stats(data$BMI)$out), ]
+boxplot(data$BMI)
+
+boxplot(data$Glycemy, data = data)
+data <- data[-which(data$Glycemy%in% boxplot.stats(data$Glycemy)$out), ]
+boxplot(data$Glycemy)
+
+boxplot(data$LBW, data = data)
+
+boxplot(data$Ext_Temp, data = data)
+
+boxplot(data$`2D_Temp`, data = data)
+
+boxplot(data$`3D_Temp`, data = data)
+
+boxplot(data$`1M_Temp`, data = data)
+
+boxplot(data$Weigth, data = data)
+data <- data[-which(data$Weigth %in% boxplot.stats(data$Weigth)$out), ]
+boxplot(data$Weigth)
+
+boxplot(data$Size, data = data)
+data <- data[-which(data$Size %in% boxplot.stats(data$Size)$out), ]
+boxplot(data$Size)
+
+
+# split into train and test set--------------
+
+# Randomly Split the data into training and test set
+set.seed(1212)
+training.samples <- data$BrownFat %>%
+  createDataPartition(p = 0.75, list = FALSE)
+train.data  <- data[training.samples, ]
+test.data <- data[-training.samples, ]
+
+
+Y = test.data$BrownFat
+X1 = test.data$Sex
+X2 = test.data$Diabetes 
+X3 = test.data$Age 
+X4 = test.data$`7D_Temp`
+X5 = test.data$Season 
+X6 = test.data$Duration_Sunshine
+X7 = test.data$BMI 
+X8 = test.data$Glycemy 
+X9 = test.data$LBW 
+X10 = test.data$Cancer_Type 
+X11 = test.data$Month
+X12 = test.data$Ext_Temp
+X13 = test.data$`2D_Temp`
+X14 = test.data$`3D_Temp`
+X15 = test.data$`1M_Temp`
+X16 = test.data$Weigth
+X17 = test.data$Size
+
+# Model Selection--------------------------------
+
+sapply(lapply(test.data, unique), length)
+# Since diabetes only has one level in our training set, we drop it
+
+fit0 <- lm(Y ~ factor(X1) + X3 +X4 +factor(X5) +X6 +X7 +X8 +X9 +factor(X10) +factor(X11) +X12 +X13 +X14 +X15 +X16 +X17)
+summary(fit0)
+fit1 <- lm(Y ~ factor(X1) + X3 +X4 +factor(X5) +X6 +X7 +X8 +X9 +factor(X10) +factor(X11) +X12 +X13 +X14 +X15 +X16 +X17)
 fit2 <- lm(Y ~ 1)
 
 stepAIC(fit2, direction = "both", scope = list(upper = fit1, lower = fit2))
 
 # Final model 
-fit = lm(Y ~X3 + X9 + X12 + factor(X2) + factor(X1) + X16 + X13 + X14 + X15)
+fit = lm(Y ~X3 + X9 + X12 +  X17 + X15)
+summary(fit)
+
+
+## Multicolinearity --------------------------------
+summary(fit)
+ggpairs(subset(data, select = c(3, 17, 6, 10, 13, 19)))
+
+# by looking at the correlation matrix, ext_temp and 1m_temp are highly
+# correlated and we decide to only keep one, which is ext_temp, since is has the higher correlation with brown fat
+fit = lm(Y ~X3 + X9 + X17 + X15)
+summary(fit)
 
 # Effective data
-ed = data.frame(cbind(Sex = X1, Diabetes = X2, Age = X3, LBW = X9, Ext_Temp = X12, Weight = X16, BrownFat = Y))
+ed = data.frame(cbind(Age = X3, LBW = X9, Weight = X17, `1M_Temp` = X15, BrownFat = Y))
 
 
-
-## Multicolinearity
-summary(fit)
-ggpairs(subset(data, select = c(1, 2, 3, 17, 6, 7, 8, 10, 13, 19)))
-
-# by looking at the correlation matrix, ext_temp, 2d_temp, 3_d temp and 1m_temp are highly
-# correlated and we decide to only keep one, which is ext_temp, since is has the highest correlation with brown fat
-
-fit = lm(Y+1 ~X3 + X9 + X12 + factor(X2) + factor(X1) + X16, na.action = na.exclude)
-
-# VIF Test
-VIFbar = mean(vif(fit))
-# which is not significantly > 1
-
+# Checking Assumptions ------------------------------------
 
 ## Normality of errors
 res = resid(fit)
@@ -80,12 +143,30 @@ qqnorm(res)
 qqline(res) 
 
 # box cox suggest to use lambda = -2 
+fit = lm(Y + 1 ~X3 + X9 + X17 + X15)        # shift resoponse since 1/0 is undefined
 result = boxcox(fit)
 lambda = result$x[which.max(result$y)]
-fit = lm(((Y+1) ^ lambda - 1)/lambda ~X3 + X9 + X12 + factor(X2) + factor(X1) + X16)
-
+fit = lm(((Y+1) ^ lambda - 1)/lambda ~X3 + X9 + X17 + X15)
+summary(fit)
 # still not good but it is what it is
 
+hist(fit$residuals)
+# Looks like a left-tail normal
+
+
+# Try Polynomial model--------------------
+pm = lm(Y ~ polym(X3, X9, X17, X15, degree=4, raw=TRUE))        # shift resoponse since 1/0 is undefined
+summary(pm)
+# Multiple R-squared keep increasing as we increase the degree (danger of overfitting)
+
+## Normality of errors
+res = resid(pm)
+
+#produce residual vs. fitted plot
+plot(fitted(pm), res)
+
+#add a horizontal line at 0 
+abline(0,0)
 
 
 # Removing outliers
@@ -127,10 +208,10 @@ X3 = ed$Age
 X9 = ed$LBW 
 X12 = ed$Ext_Temp
 X16 = ed$Weight
-Y = ed$BrownFat
+Y = ed$BrownFat + 1
 # fit the model without outliers
 fit = lm(Y ~X3 + X9 + X12 + factor(X2) + factor(X1) + X16)
-
+summary(fit)
 ## Check for interaction terms
 fit.inter = lm(Y ~ (X3 + X9 + X12 + factor(X2) + factor(X1) + X16)^2)
 anova(fit.inter)
