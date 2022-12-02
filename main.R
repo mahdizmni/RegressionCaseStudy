@@ -3,90 +3,16 @@ library("GGally")
 library("ggplot2")
 library("MASS")
 library("ggstatsplot")
+library("car")
+library("ggpubr")
+library("olsrr")
 
 data = read_excel('~/git/RegressionCaseStudy/data/BrownFat.xls')
 
 data = subset(data, select = -c(1, 21, 23))
 
-s = as.numeric(data$Sex == 2) # Male
-d = as.numeric(data$Diabetes == 1) #Yes
-se1 = as.numeric(data$Season == 2) #Spring
-se2 = as.numeric(data$Season == 3) #Fall
-se3 = as.numeric(data$Season == 4) #Winter
-# Summer is the base category
-cs = as.numeric(data$Cancer_Status == 1) #Yes
-ct1 = as.numeric(data$Cancer_Type == 1)
-ct2 = as.numeric(data$Cancer_Type == 2)
-ct3 = as.numeric(data$Cancer_Type == 3)
-ct4 = as.numeric(data$Cancer_Type == 4)
-ct5 = as.numeric(data$Cancer_Type == 5)
-ct6 = as.numeric(data$Cancer_Type == 6)
-ct7 = as.numeric(data$Cancer_Type == 7)
-ct8 = as.numeric(data$Cancer_Type == 8)
-ct9 = as.numeric(data$Cancer_Type == 9)
-ct10 = as.numeric(data$Cancer_Type == 10)
-ct11 = as.numeric(data$Cancer_Type == 11)
-ct12 = as.numeric(data$Cancer_Type == 12)
-ct13 = as.numeric(data$Cancer_Type == 13)
-ct14 = as.numeric(data$Cancer_Type == 14)
-ct15 = as.numeric(data$Cancer_Type == 15)
-ct16 = as.numeric(data$Cancer_Type == 16)
-# Other is the base category
-
-b = as.numeric(data$BrownFat == 1)
-# No brown fat is the base category
-
-# Excluding some visible outliers
-#data = subset(data, data$Age > 17)
-#data = subset(data, data$Weigth > 25)
-#data = subset(data, data$Weigth < 175)
-#data = subset(data, data$Size > 125)
-
-#ggpairs(subset(data, select = c(6, 7, 8, 9, 10, 20)))
-# Removing highly correlated temparatures
-#data = subset(data, select = -c(6, 7, 8, 10))
-# Removin size and weight, check for colinearrity of size and weight and each
-# in relation to the response variable
-
-#ggpairs(subset(data, select = c(9, 10, 11, 13, 2, 12, 16)))
-# Removing size and weight
-#data = subset(data, select = -c(9, 10))
-
 # Removing cancer status : redundant 
 data = subset(data, select = -c(18))
-
-# Reomveing day and month since it is not related for prediction
-#data = subset(data, select = -c(4, 5))
-
-#ggpairs(subset(data, select = c(4, 5, 6, 11)))
-Q <- quantile(data$Age , probs=c(.25, .75), na.rm = FALSE)
-iqr <- IQR(data$Age )
-up <-  Q[2]+1.5*iqr # Upper Range  
-low<- Q[1]-1.5*iqr # Lower Range
-data<- subset(data, data$Age  > (Q[1] - 1.5*iqr) & data$Age  < (Q[2]+1.5*iqr))
-boxplot(data$Age )$out
-
-boxplot(data$Weigth)$out
-
-
-Q <- quantile(data$Weigth, probs=c(.25, .75), na.rm = FALSE)
-iqr <- IQR(data$Weigth)
-up <-  Q[2]+1.5*iqr # Upper Range  
-low<- Q[1]-1.5*iqr # Lower Range
-data<- subset(data, data$Weigth > (Q[1] - 1.5*iqr) & data$Weigth < (Q[2]+1.5*iqr))
-boxplot(data$Weigth)$out
-
-
-boxplot(data$BMI)$out
-Q <- quantile(data$BMI, probs=c(.25, .75), na.rm = FALSE)
-iqr <- IQR(data$BMI)
-up <-  Q[2]+1.5*iqr # Upper Range  
-low<- Q[1]-1.5*iqr # Lower Range
-data<- subset(data, data$BMI > (Q[1] - 1.5*iqr) & data$BMI < (Q[2]+1.5*iqr))
-boxplot(data$BMI)$out
-
-
-
 
 Y = data$BrownFat
 X1 = data$Sex
@@ -107,71 +33,107 @@ X15 = data$`1M_Temp`
 X16 = data$Weigth
 X17 = data$Size
 
-fit0 <- lm(Y ~ X1 + X2 +X3 +X4 +X5 +X6 +X7 +X8 +X9 +X10 +X11 +X12 +X13 +X14 +X15 +X16 +X17) 
+fit0 <- lm(Y ~ factor(X1) + factor(X2) +X3 +X4 +factor(X5) +X6 +X7 +X8 +X9 +factor(X10) +factor(X11) +X12 +X13 +X14 +X15 +X16 +X17)
 
 # Model selection 
-fit1 = lm(Y ~ X1 + X2 +X3 +X4 +X5 +X6 +X7 +X8 +X9 +X10 +X11 +X12 +X13 +X14 +X15 +X16 +X17) 
-stepAIC(fit1, direction = "backward")
+fit1 <- lm(Y ~ factor(X1) + factor(X2) +X3 +X4 +factor(X5) +X6 +X7 +X8 +X9 +factor(X10) +factor(X11) +X12 +X13 +X14 +X15 +X16 +X17)
 fit2 <- lm(Y ~ 1)
-stepAIC(fit2, direction = "forward", scope = list(upper = fit1, lower = fit2))
 
 stepAIC(fit2, direction = "both", scope = list(upper = fit1, lower = fit2))
 
-# Final model : Y ~ X3 + X9 + X12 + X2 + X1 + X16 + X5
-fit = lm(Y ~ X3 + X9 + X12 + X2 + X1 + X16 + X5)
+# Final model 
+fit = lm(Y ~X3 + X9 + X12 + factor(X2) + factor(X1) + X16 + X13 + X14 + X15)
 
-ed = data.frame(cbind(Sex = X1, Diabetes = X2, Age = X3, Season = X5, LBW = X9, Ext_Temp = X12, Weight = X16, BrownFat = Y))
-
-
-dffits <- as.data.frame(dffits(fit))
-
-p <- length(fit$coefficients)-1
-
-n <- nrow(data)
-
-thresh <- 2*sqrt(p/n)
-
-#sort observations by DFFITS, descending
-dffits[order(-dffits['dffits(fit)']), ]
-
-#plot DFFITS values for each observation
-plot(dffits(fit), type = 'h')
-
-#add horizontal lines at absolute values for threshold
-abline(h = thresh, lty = 2)
-abline(h = -thresh, lty = 2)
+ed = data.frame(cbind(Sex = X1, Diabetes = X2, Age = X3, LBW = X9, Ext_Temp = X12, Weight = X16, BrownFat = Y))
 
 
+
+## Multicolinearity
+summary(fit)
+ggpairs(subset(data, select = c(1, 2, 3, 17, 6, 7, 8, 10, 13, 19)))
+
+# by looking at the correlation matrix, ext_temp, 2d_temp, 3_d temp and 1m_temp are highly
+# correlated and we decide to only keep one, which is ext_temp, since is has the highest correlation with brown fat
+
+fit = lm(Y+1 ~X3 + X9 + X12 + factor(X2) + factor(X1) + X16, na.action = na.exclude)
+
+# VIF Test
+VIFbar = mean(vif(fit))
+# which is not significantly > 1
+
+
+## Normality of errors
+res = resid(fit)
+
+#produce residual vs. fitted plot
+plot(fitted(fit), res)
+
+#add a horizontal line at 0 
+abline(0,0)
+
+
+#create Q-Q plot for residuals
+qqnorm(res)
+
+#add a straight diagonal line to the plot
+qqline(res) 
+
+# box cox suggest to use lambda = -2 
+result = boxcox(fit)
+lambda = result$x[which.max(result$y)]
+fit = lm(((Y+1) ^ lambda - 1)/lambda ~X3 + X9 + X12 + factor(X2) + factor(X1) + X16)
+
+# still not good but it is what it is
+
+
+
+# Removing outliers
+
+## Outliers
+# Graphical representations
+ols_plot_cooksd_char(fit)
+ols_plot_dfbetas(fit)
+ols_plot_dffits(fit)
+p1 -> ols_plot_cooksd_char(fit)
+p2 -> ols_plot_dffits(fit)
+ggarrange(p1, p2, ncol=2, nrow=1)
+
+boxplot(ed)
+# a lot in age and weight 
+
+
+# Removing outliers from Age 
+quartiles <- quantile(ed$Age, probs=c(.25, .75), na.rm = FALSE)
+IQR <- IQR(ed$Age)
+
+Lower <- quartiles[1] - 1.5*IQR
+Upper <- quartiles[2] + 1.5*IQR 
+
+ed = subset(ed, ed$Age > Lower & ed$Age < Upper)
+
+# Removing outliers from Weight 
+quartiles <- quantile(ed$Weight , probs=c(.25, .75), na.rm = FALSE)
+IQR <- IQR(ed$Weight)
+
+Lower <- quartiles[1] - 1.5*IQR
+Upper <- quartiles[2] + 1.5*IQR 
+
+ed = subset(ed, ed$Weight > Lower & ed$Weight < Upper)
+
+# After
+boxplot(ed)
 
 # fit the model without outliers
-fit = lm(Y ~ X3 + X9 + X12 + X2 + X1 + X16 + X5)
+fit = lm(Y ~X3 + X9 + X12 + factor(X2) + factor(X1) + X16)
+
+## Check for interaction terms
+fit.inter = lm(Y ~ (X3 + X9 + X12 + factor(X2) + factor(X1) + X16)^2)
+anova(fit.inter)
+# interaction terms are not significant and seem to complicate the model, so we decide not to add them
 
 
 
-# NO colinearrity since the significant t values and corr matrix
-summary(fit)
-ggpairs(subset(data, select = c(1, 2, 3, 11, 17, 6, 13)))
-
-
-
-# Check for interaction terms
-fit.inter =  lm(Y ~ (X3 + X9 + X12 + X2 + X1 + X16 + X5)^2)
-anova(lm.fit2)
-
-
-
-
-
-
-# check for normality of data
-qqPlot(data)
-
-
-
-# if not normal : box cox transf
-
-
-# Checking for unequal variance
+## Checking for unequal variance
 ed$resid = rstandard(fit)
 ggplot(data=ed, aes(X1, resid, col="red")) + geom_point() + geom_smooth(method = "lm", se=FALSE)
 ggplot(data=ed, aes(X2, resid, col="red")) + geom_point() + geom_smooth(method = "lm", se=FALSE)
