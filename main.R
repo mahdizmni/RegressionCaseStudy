@@ -78,59 +78,60 @@ train.data  <- data[training.samples, ]
 test.data <- data[-training.samples, ]
 
 
-Y = test.data$BrownFat
-X1 = test.data$Sex
-X2 = test.data$Diabetes 
-X3 = test.data$Age 
-X4 = test.data$`7D_Temp`
-X5 = test.data$Season 
-X6 = test.data$Duration_Sunshine
-X7 = test.data$BMI 
-X8 = test.data$Glycemy 
-X9 = test.data$LBW 
-X10 = test.data$Cancer_Type 
-X11 = test.data$Month
-X12 = test.data$Ext_Temp
-X13 = test.data$`2D_Temp`
-X14 = test.data$`3D_Temp`
-X15 = test.data$`1M_Temp`
-X16 = test.data$Weigth
-X17 = test.data$Size
+Y = train.data$BrownFat
+X1 = train.data$Sex
+X2 = train.data$Diabetes 
+X3 = train.data$Age 
+X4 = train.data$`7D_Temp`
+X5 = train.data$Season 
+X6 = train.data$Duration_Sunshine
+X7 = train.data$BMI 
+X8 = train.data$Glycemy 
+X9 = train.data$LBW 
+X10 = train.data$Cancer_Type 
+X11 = train.data$Month
+X12 = train.data$Ext_Temp
+X13 = train.data$`2D_Temp`
+X14 = train.data$`3D_Temp`
+X15 = train.data$`1M_Temp`
+X16 = train.data$Weigth
+X17 = train.data$Size
 
 # Model Selection--------------------------------
 
-sapply(lapply(test.data, unique), length)
+sapply(lapply(train.data, unique), length)
 # Since diabetes only has one level in our training set, we drop it
 
-fit0 <- lm(Y ~ factor(X1) + X3 +X4 +factor(X5) +X6 +X7 +X8 +X9 +factor(X10) +factor(X11) +X12 +X13 +X14 +X15 +X16 +X17)
+fit0 <- lm(Y ~ factor(X1) + factor(X2) + X3 +X4 +factor(X5) +X6 +X7 +X8 +X9 +factor(X10) +factor(X11) +X12 +X13 +X14 +X15 +X16 +X17)
 summary(fit0)
-fit1 <- lm(Y ~ factor(X1) + X3 +X4 +factor(X5) +X6 +X7 +X8 +X9 +factor(X10) +factor(X11) +X12 +X13 +X14 +X15 +X16 +X17)
+fit1 <- lm(Y ~ factor(X1) + X3 + factor(X2)+X4 +factor(X5) +X6 +X7 +X8 +X9 +factor(X10) +factor(X11) +X12 +X13 +X14 +X15 +X16 +X17)
 fit2 <- lm(Y ~ 1)
 
 stepAIC(fit2, direction = "both", scope = list(upper = fit1, lower = fit2))
 
 # Final model 
-fit = lm(Y ~X3 + X9 + X12 +  X17 + X15)
+fit = lm(Y ~ X3 + X12 + X7 + factor(X1) + factor(X2) + X17 + 
+           factor(X5))
 summary(fit)
 
 
 ## Multicolinearity --------------------------------
 summary(fit)
-ggpairs(subset(data, select = c(3, 17, 6, 10, 13, 19)))
+ggpairs(subset(data, select = c(1, 2, 3, 11, 14, 6, 15, 19)))
 
-# by looking at the correlation matrix, ext_temp and 1m_temp are highly
+# by looking at the correlation matrix, ext_temp and season are highly
 # correlated and we decide to only keep one, which is ext_temp, since is has the higher correlation with brown fat
-fit = lm(Y ~X3 + X9 + X17 + X15)
+fit = lm(Y ~ X3 + X12 + X7 + factor(X1) + factor(X2) + X17) 
 summary(fit)
 
 # VIF test
 
 
 # Effective data
-ed = data.frame(cbind(Age = X3, LBW = X9, Weight = X17, `1M_Temp` = X15, BrownFat = Y))
+ed = data.frame(cbind(Age = X3, Ext_Temp = X12, BMI = X7, Sex = X1, Diabetes = X2, Size = X17, BrownFat = Y))
 
 # Check for interaction terms
-fit.inter = lm(Y ~ (X3 + X9 + X12 + factor(X2) + factor(X1) + X16)^2)
+fit.inter = lm(Y ~ (X3 + X12 + X7 + factor(X1) + factor(X2) + X17)^2)
 anova(fit.inter)
 # interaction terms are not significant and seem to complicate the model, so we decide not to add them
 
@@ -154,10 +155,10 @@ qqnorm(res)
 qqline(res) 
 
 # box cox suggest to use lambda = -2 
-fit = lm(Y + 1 ~X3 + X9 + X17 + X15)        # shift resoponse since 1/0 is undefined
+fit = lm(Y + 1 ~X3 + X12 + X7 + factor(X1) + factor(X2) + X17)        # shift resoponse since 1/0 is undefined
 result = boxcox(fit)
 lambda = result$x[which.max(result$y)]
-fit = lm(((Y+1) ^ lambda - 1)/lambda ~X3 + X9 + X17 + X15)
+fit = lm(((Y+1) ^ lambda - 1)/lambda ~X3 + X12 + X7 + factor(X1) + factor(X2) + X17)
 summary(fit)
 # still not good but it is what it is
 
@@ -166,14 +167,14 @@ hist(fit$residuals)
 
 
 # Try Polynomial model--------------------
-pm = lm(Y + 1~ polym(X3, X9, X17, X15, degree=3, raw=TRUE))        # shift resoponse since 1/0 is undefined
+pm = lm(Y + 1~ polym(X3 , X12 , X7 , factor(X1) , factor(X2) , X17, degree=2, raw=TRUE))        # shift resoponse since 1/0 is undefined
 summary(pm)
 # Multiple R-squared keep increasing as we increase the degree (danger of overfitting)
 
 # box cox suggest to use lambda = -2 
 result = boxcox(pm)
 lambda = result$x[which.max(result$y)]
-fit = lm(((Y+1) ^ lambda - 1)/lambda ~polym(X3, X9, X17, X15, degree=3, raw=TRUE))
+fit = lm(((Y+1) ^ lambda - 1)/lambda ~polym(Age , Ext_Temp , BMI , Sex, Diabetes , Size, degree=2, raw=TRUE), data = train.data)
 summary(fit)
 #
 ## Normality of errors (Still bad)
@@ -225,11 +226,12 @@ ggplot(data=ed, aes(X16, resid, col="red")) + geom_point() + geom_smooth(method 
 # Seem to have equal variance, no need to do WLS to complicate model more
 
 
-# Prediction on testset----------------------
-prediction = fit %>% predict(test.data)
+# Prediction on test set----------------------
+prediction = predict(fit, test.data[, c(1, 2, 3, 11, 14, 6, 15)])
 
 # Checking performance by calculating R2 , RMSE and MAE
 data.frame( R2 = R2(prediction, test.data$BrownFat),
             RMSE = RMSE(prediction, test.data$BrownFat),
-            MAE = MAE(prediction, test.data$BrownFat),
-            MSPR = mspr(test.data$BrownFat ,prediction, dim(test.data)[1] ))
+            MAE = MAE(prediction, test.data$BrownFat)
+            # ,MSPR = mspr(test.data$BrownFat ,prediction, dim(test.data)[1] )
+            )
