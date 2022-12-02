@@ -110,7 +110,7 @@ Lower <- quartiles[1] - 1.5*IQR
 Upper <- quartiles[2] + 1.5*IQR 
 
 ed = subset(ed, ed$Age > Lower & ed$Age < Upper)
-
+X3 = ed$Age 
 # Removing outliers from Weight 
 quartiles <- quantile(ed$Weight , probs=c(.25, .75), na.rm = FALSE)
 IQR <- IQR(ed$Weight)
@@ -119,7 +119,7 @@ Lower <- quartiles[1] - 1.5*IQR
 Upper <- quartiles[2] + 1.5*IQR 
 
 ed = subset(ed, ed$Weight > Lower & ed$Weight < Upper)
-
+X16 = ed$Weight
 # After
 boxplot(ed)
 
