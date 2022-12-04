@@ -8,8 +8,8 @@ library("ggpubr")
 library("olsrr")
 library("caret")
 library("Fgmutils")
-
-data = read_excel('~/git/RegressionCaseStudy/data/BrownFat.xls')
+install.packages()
+data = read_excel('/Users/nikhillakhwani/Desktop/c67/project/RegressionCaseStudy/data/BrownFat.xls')
 
 data = subset(data, select = -c(1, 21, 23))
 
@@ -20,7 +20,6 @@ data = subset(data, select = -c(18))
 # Removing outliers----------------------
 
 boxplot(data$Sex)
-
 
 boxplot(data$Diabetes)
 data <- data[-which(data$Diabetes %in% boxplot.stats(data$Diabetes)$out), ]
@@ -65,6 +64,17 @@ boxplot(data$Size, data = data)
 data <- data[-which(data$Size %in% boxplot.stats(data$Size)$out), ]
 boxplot(data$Size)
 
+ggplot(data = data, aes(Size, BrownFat)) + geom_point(color = "red")
+
+ggplot(data = data, aes(Sex, BrownFat)) + geom_point(color = "red")
+ggplot(data = data, aes(Diabetes, BrownFat)) + geom_point(color = "red")
+ggplot(data = data, aes(Age, BrownFat)) + geom_point(color = "red")
+ggplot(data = data, aes(Ext_Temp, BrownFat)) + geom_point(color = "red")
+ggplot(data = data, aes(Size, BrownFat)) + geom_point(color = "red")
+ggplot(data = data, aes(Size, BrownFat)) + geom_point(color = "red")
+ggplot(data = data, aes(Size, BrownFat)) + geom_point(color = "red")
+
+
 
 # split into train and test set--------------
 
@@ -74,8 +84,8 @@ training.samples <- data$BrownFat %>%
   createDataPartition(p = 0.75, list = FALSE)
 train.data  <- data[training.samples, ]
 test.data <- data[-training.samples, ]
-
-
+test.data = na.omit(test.data)
+train.data = na.omit(train.data)
 Y = train.data$BrownFat
 X1 = train.data$Sex
 X2 = train.data$Diabetes 
@@ -100,36 +110,35 @@ X17 = train.data$Size
 sapply(lapply(train.data, unique), length)
 # Since diabetes only has one level in our training set, we drop it
 
-fit0 <- lm(Y ~ factor(X1) + factor(X2) + X3 +X4 +factor(X5) +X6 +X7 +X8 +X9 +factor(X10) +factor(X11) +X12 +X13 +X14 +X15 +X16 +X17)
+fit0 <- lm(Y ~ factor(X1) + X3 +X4 +factor(X5) +X6 +X7 +X8 +X9 +factor(X10) +factor(X11) +X12 +X13 +X14 +X15 +X16 +X17)
 summary(fit0)
-fit1 <- lm(Y ~ factor(X1) + X3 + factor(X2)+X4 +factor(X5) +X6 +X7 +X8 +X9 +factor(X10) +factor(X11) +X12 +X13 +X14 +X15 +X16 +X17)
+fit1 <- lm(Y ~ factor(X1) + X3 + X4 +factor(X5) +X6 +X7 +X8 +X9 +factor(X10) +factor(X11) +X12 +X13 +X14 +X15 +X16 +X17)
 fit2 <- lm(Y ~ 1)
 
 stepAIC(fit2, direction = "both", scope = list(upper = fit1, lower = fit2))
 
 # Final model 
-fit = lm(Y ~ X3 + X12 + X7 + factor(X1) + factor(X2) + X17 + 
-           factor(X5))
+fit = lm(Y ~ factor(X1) + X3 + X16 + X12 + X15)
 summary(fit)
 
 
 ## Multicolinearity --------------------------------
 summary(fit)
-ggpairs(subset(data, select = c(1, 2, 3, 11, 14, 6, 15, 19)))
+ggpairs(subset(data, select = c(1, 2, 3, 10, 6, 13, 19)))
 
 # by looking at the correlation matrix, ext_temp and season are highly
 # correlated and we decide to only keep one, which is ext_temp, since is has the higher correlation with brown fat
-fit = lm(Y ~ X3 + X12 + X7 + factor(X1) + factor(X2) + X17) 
+fit = lm(Y ~ factor(X1) + X3 + X16 + X12) 
 summary(fit)
 
 # VIF test
 
 
 # Effective data
-ed = data.frame(cbind(Age = X3, Ext_Temp = X12, BMI = X7, Sex = X1, Diabetes = X2, Size = X17, BrownFat = Y))
+ed = data.frame(cbind(Age = X3, Sex = X1, Weigth = X16, Ext_Temp = X12, BrownFat = Y))
 
 # Check for interaction terms
-fit.inter = lm(Y ~ (X3 + X12 + X7 + factor(X1) + factor(X2) + X17)^2)
+fit.inter = lm(Y ~ (factor(X1) + X3 + X16 + X12)^2)
 anova(fit.inter)
 # interaction terms are not significant and seem to complicate the model, so we decide not to add them
 
@@ -153,10 +162,10 @@ qqnorm(res)
 qqline(res) 
 
 # box cox suggest to use lambda = -2 
-fit = lm(Y + 1 ~X3 + X12 + X7 + factor(X1) + factor(X2) + X17)        # shift resoponse since 1/0 is undefined
+fit = lm(Y + 1 ~(factor(X1) + X3 + X16 + X12))        # shift resoponse since 1/0 is undefined
 result = boxcox(fit)
 lambda = result$x[which.max(result$y)]
-fit = lm(((Y+1) ^ lambda - 1)/lambda ~X3 + X12 + X7 + factor(X1) + factor(X2) + X17)
+fit = lm(((Y+1) ^ lambda - 1)/lambda ~(factor(X1) + X3 + X16 + X12))
 summary(fit)
 # still not good but it is what it is
 
@@ -165,14 +174,14 @@ hist(fit$residuals)
 
 
 # Try Polynomial model--------------------
-pm = lm(Y + 1~ polym(X3 , X12 , X7 , factor(X1) , factor(X2) , X17, degree=2, raw=TRUE))        # shift resoponse since 1/0 is undefined
+pm = lm(Y ~ polym(X3 , X12 , X16, degree=2, raw=TRUE))        # shift resoponse since 1/0 is undefined
 summary(pm)
 # Multiple R-squared keep increasing as we increase the degree (danger of overfitting)
 
 # box cox suggest to use lambda = -2 
 result = boxcox(pm)
 lambda = result$x[which.max(result$y)]
-fit = lm(((Y+1) ^ lambda - 1)/lambda ~polym(Age , Ext_Temp , BMI , Sex, Diabetes , Size, degree=2, raw=TRUE), data = train.data)
+fit = lm(((Y+1) ^ lambda - 1)/lambda ~polym(Age , Weigth , Sex , Ext_Temp, degree=2, raw=TRUE), data = train.data)
 summary(fit)
 #
 ## Normality of errors (Still bad)
@@ -191,7 +200,7 @@ plot(pm ,1)
 # Homoscedasticity Assumption 
 ols_test_score(pm)
 
-# Autocorrelation Assumption 
+  # Autocorrelation Assumption 
 durbinWatsonTest(pm)
 
 # Normality Assumption
@@ -225,7 +234,7 @@ ggplot(data=ed, aes(X16, resid, col="red")) + geom_point() + geom_smooth(method 
 
 
 # Prediction on test set----------------------
-prediction = predict(fit, test.data[, c(1, 2, 3, 11, 14, 6, 15)])
+prediction = predict(fit, test.data[, c(1, 13, 3, 6)]) 
 
 # Checking performance by calculating R2 , RMSE and MAE
 data.frame( R2 = R2(prediction, test.data$BrownFat),
