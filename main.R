@@ -9,8 +9,8 @@ library("olsrr")
 library("caret")
 library("Fgmutils")
 library("tidyverse")
-
-install.packages("tidyverse")
+library("lmtest")
+library("dplyr")
 
 data = read_excel('~/git/RegressionCaseStudy/data/BrownFat.xls')
 
@@ -131,8 +131,9 @@ stepAIC(fit2, direction = "both", scope = list(upper = fit1, lower = fit2))
 
 # Final model obtainded by stepAIC()
 fit = lm(Y ~ X3 + X12 + X15 + X8 + X7 + factor(X1) + X17)
-summary(fit)        # explanation of the data
-
+summary(fit)        # explanation of the data by p-value and R-squared
+qf(1 - 0.05, 7, 2703)
+# f-test : reject the null hypo
 
 ## Multicolinearity --------------------------------
 
@@ -158,11 +159,10 @@ ed = data.frame(cbind(Age = X3, Sex = X1, Size = X17, Ext_Temp = X12, Glycemy = 
 fit.inter = lm(Y ~ (X3 + X12 + X8 + X7 + factor(X1) + X17)^2)
 anova(fit.inter)
 summary(fit.inter)
-# Choosing the ones acording to the p-value, we have a slightly better r-squared
-# setting the alpha to 0.05
-# Model obtained after interaction: 
-fit.inter = 
-summary(fit.inter)
+qf(1 - 0.05, 21, 2689)
+# F-test : reject the null
+# we got slightly better R-squared in this one
+fit = fit.inter
 
 # Checking Assumptions ------------------------------------
 
@@ -175,6 +175,7 @@ plot(fitted(fit), res)
 #add a horizontal line at 0 
 abline(0,0)
 
+## result : errors are not randomly spreaded (lec 6), violoates
 
 #create Q-Q plot for residuals
 qqnorm(res)
@@ -182,59 +183,60 @@ qqnorm(res)
 #add a straight diagonal line to the plot
 qqline(res) 
 
-# box cox suggest to use lambda = -2 
-fit = lm(Y + 1 ~(factor(X1) + X3 + X16 + X12))        # shift resoponse since 1/0 is undefined
-result = boxcox(fit)
-lambda = result$x[which.max(result$y)]
-fit = lm(((Y+1) ^ lambda - 1)/lambda ~(factor(X1) + X3 + X16 + X12))
-summary(fit)
-# still not good but it is what it is
-
+# plotting his of residuals
 hist(fit$residuals)
 # Looks like a left-tail normal
 
+## result : errors are not normally distributed
 
-# Try Polynomial model--------------------
-pm = lm(Y ~ polym(X3 , X12 , X16, degree=2, raw=TRUE))        # shift resoponse since 1/0 is undefined
-summary(pm)
-# Multiple R-squared keep increasing as we increase the degree (danger of overfitting)
+# remedy: use box cox transformation
 
-# box cox suggest to use lambda = -2 
-result = boxcox(pm)
+# adding 1 to Y, to not get errors in box-cox, since we have 1/0 in calcluations,
+# we shift the response variables form {0, 1} to {1, 2}
+fit = lm(Y + 1 ~ (X3 + X12 + X8 + X7 + factor(X1) + X17)^2)  
+result = boxcox(fit)
 lambda = result$x[which.max(result$y)]
-fit = lm(((Y+1) ^ lambda - 1)/lambda ~polym(Age , Weigth , Sex , Ext_Temp, degree=2, raw=TRUE), data = train.data)
+# lambda = -2
+
+fit = lm(((Y+1) ^ lambda - 1)/lambda ~ (X3 + X12 + X8 + X7 + factor(X1) + X17)^2)
 summary(fit)
-#
-## Normality of errors (Still bad)
-res = resid(pm)
+
+# rechecking assumptions to see if it got any better
+## Normality of errors
+res = resid(fit)
 
 #produce residual vs. fitted plot
-plot(fitted(pm), res)
+plot(fitted(fit), res)
 
 #add a horizontal line at 0 
 abline(0,0)
 
+## result : errors are not randomly spreaded (lec 6), violoates
 
-# Linearity Assumption
-plot(pm ,1)
+#create Q-Q plot for residuals
+qqnorm(res)
 
-# Homoscedasticity Assumption 
-ols_test_score(pm)
+#add a straight diagonal line to the plot
+qqline(res) 
 
-  # Autocorrelation Assumption 
-durbinWatsonTest(pm)
-
-# Normality Assumption
-shapiro.test(pm$residuals)
-
-# Multicolinearity Assumption
-vif(pm)
+# result : it did not get any better and box-cox did not work out
 
 
-# Graphical representations of Influencial points
-ols_plot_cooksd_char(fit)
-ols_plot_dfbetas(fit)
-ols_plot_dffits(fit)
+# best model so far:
+summary(fit)
+
+
+# Try Polynomial model--------------------
+# have to remove factor(X1), since it's categorical and can't be added to polynomial
+pm = lm(Y ~ polym(X3 , X12 , X8 , X7 , X17, degree=3, raw=TRUE))        # shift resoponse since 1/0 is undefined
+summary(pm)
+# Multiple R-squared keep increasing as we increase the degree (danger of overfitting)
+# on degree2, our interaction model worked better, check r-squares
+
+### Graphical representations of Influencial points
+ols_plot_cooksd_char(fit)         # Cooks distance
+ols_plot_dfbetas(fit)           #DFBETAS
+ols_plot_dffits(fit)            #DFFITS
 p1 -> ols_plot_cooksd_char(fit)
 p2 -> ols_plot_dffits(fit)
 ggarrange(p1, p2, ncol=2, nrow=1)
@@ -251,17 +253,63 @@ ggplot(data=ed, aes(X9, resid, col="red")) + geom_point() + geom_smooth(method =
 ggplot(data=ed, aes(X12, resid, col="red")) + geom_point() + geom_smooth(method = "lm", se=FALSE)
 ggplot(data=ed, aes(X16, resid, col="red")) + geom_point() + geom_smooth(method = "lm", se=FALSE)
 
-# Seem to have equal variance, no need to do WLS to complicate model more
+# Test of equal variances
+bptest(fit)
+# result : p-value < 0.05, so we have unequal variances
 
+# remedy: Weighted Least Square Regression
+
+#define weights to use
+wt <- 1 / lm(abs(fit$residuals) ~ fit$fitted.values)$fitted.values^2
+
+wls_fit <- lm(Y ~ (Age + Ext_Temp + Glycemy + BMI + Sex + Size)^2,  data = train.data, weights=wt)
+
+summary(wls_fit)
+
+# Result : wow! we got 0.602 R-squared
+
+# Final Model : is the weighted least squares model with interaction terms
+# lm(Y ~ (X3 + X12 + X8 + X7 + factor(X1) + X17)^2,  weights=wt
+
+fit = wls_fit
 
 # Prediction on test set----------------------
-prediction = predict(fit, test.data[, c(1, 13, 3, 6)]) 
 
-# Checking performance by calculating R2 , RMSE and MAE
+# Selecting chosen predictors from test data
+test = data.frame(test.data[, c(3, 6, 16, 15, 1, 14)])
+# Predictoin
+prediction = predict(fit, newdata = test) 
+
+# changing the type of prediction (it's a technical thing, no need to mention)
+prediction = unname(prediction)
+
+# if the predicted value is < 1/2, we label it as 0, otherwise 1
+prediction[prediction < 0.5] = 0
+prediction[prediction >= 0.5] = 1
+
+# Testing on the testing set
 data.frame( R2 = R2(prediction, test.data$BrownFat),
             RMSE = RMSE(prediction, test.data$BrownFat),
-            MAE = MAE(prediction, test.data$BrownFat)
-            # ,MSPR = mspr(test.data$BrownFat ,prediction, dim(test.data)[1] )
-            )
+            MAE = MAE(prediction, test.data$BrownFat))
+            
+# As we can see our prediction is not good, one reason could be the model that we selected.
+# Since our target(response) varaible is binary, the linear regression loss function penalizes us, even if we make a high confidential decision.
+# the better approach would be to use a logistic regression model.
+# Implemening logistic regression model
+lfit = glm(BrownFat ~ Age + Ext_Temp + Glycemy + BMI + Sex + Size,  data = train.data)
 
-# All in all, there seem to be other factors effecting brown fat
+lprediction = predict(fit, newdata = test)
+lprediction[lprediction < 0.5] = 0
+lprediction[lprediction >= 0.5] = 1
+
+data.frame( R2 = R2(lprediction, test.data$BrownFat),
+            RMSE = RMSE(lprediction, test.data$BrownFat),
+            MAE = MAE(lprediction, test.data$BrownFat))
+
+# Interestingly, as we can see, the prediction remained the same. Therefore we can conclude that,
+# Linear regression and logistic regression are not good models for predicion on this data. 
+# Therefore, this data is not linearly separable.
+# Take outs:
+# One can try to map the features to another space and apply logistic regression and try to see if this made a difference.
+# Linear and polynomial regression does not seem to be good models, according to our analysis. One can try different models.
+# There could be other factors which affects the existance of brown fat!
