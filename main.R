@@ -8,16 +8,32 @@ library("ggpubr")
 library("olsrr")
 library("caret")
 library("Fgmutils")
-install.packages()
-data = read_excel('/Users/nikhillakhwani/Desktop/c67/project/RegressionCaseStudy/data/BrownFat.xls')
+library("tidyverse")
 
+install.packages("tidyverse")
+
+data = read_excel('~/git/RegressionCaseStudy/data/BrownFat.xls')
+
+### Data cleaning------------------
+
+# Remove id, TSH(have lots of NA, so it would effect negatively if we let NA = 0), and total volume of brown fat : bc we 
+# just want to predict its existance
 data = subset(data, select = -c(1, 21, 23))
 
 # Removing cancer status : redundant 
 data = subset(data, select = -c(18))
 
 
-# Removing outliers----------------------
+# Descriptive statistics (For all variables)
+plot(data$Age, data$BrownFat)
+
+ggplot(data, aes(x=Age)) + 
+  geom_histogram(color="black", fill="red")
+
+summary(data$Age)
+
+
+### Removing outliers----------------------
 
 boxplot(data$Sex)
 
@@ -64,28 +80,19 @@ boxplot(data$Size, data = data)
 data <- data[-which(data$Size %in% boxplot.stats(data$Size)$out), ]
 boxplot(data$Size)
 
-ggplot(data = data, aes(Size, BrownFat)) + geom_point(color = "red")
 
-ggplot(data = data, aes(Sex, BrownFat)) + geom_point(color = "red")
-ggplot(data = data, aes(Diabetes, BrownFat)) + geom_point(color = "red")
-ggplot(data = data, aes(Age, BrownFat)) + geom_point(color = "red")
-ggplot(data = data, aes(Ext_Temp, BrownFat)) + geom_point(color = "red")
-ggplot(data = data, aes(Size, BrownFat)) + geom_point(color = "red")
-ggplot(data = data, aes(Size, BrownFat)) + geom_point(color = "red")
-ggplot(data = data, aes(Size, BrownFat)) + geom_point(color = "red")
-
-
-
-# split into train and test set--------------
+### Train-test split--------------
 
 # Randomly Split the data into training and test set
 set.seed(1212)
 training.samples <- data$BrownFat %>%
-  createDataPartition(p = 0.75, list = FALSE)
+  createDataPartition(p = 0.70, list = FALSE)
 train.data  <- data[training.samples, ]
 test.data <- data[-training.samples, ]
 test.data = na.omit(test.data)
 train.data = na.omit(train.data)
+
+# Naming variables
 Y = train.data$BrownFat
 X1 = train.data$Sex
 X2 = train.data$Diabetes 
@@ -105,43 +112,57 @@ X15 = train.data$`1M_Temp`
 X16 = train.data$Weigth
 X17 = train.data$Size
 
-# Model Selection--------------------------------
 
+### Model Selection--------------------------------
+
+# Check if a categorical variables has only one type, if yes, we remove since it's not effective and the lm() returns an error
 sapply(lapply(train.data, unique), length)
 # Since diabetes only has one level in our training set, we drop it
 
+# Full model (Description of the data and significance of t values)
 fit0 <- lm(Y ~ factor(X1) + X3 +X4 +factor(X5) +X6 +X7 +X8 +X9 +factor(X10) +factor(X11) +X12 +X13 +X14 +X15 +X16 +X17)
 summary(fit0)
+
+# Models to use for stepwise regression based on AIC(add explanation from lecture notes)
 fit1 <- lm(Y ~ factor(X1) + X3 + X4 +factor(X5) +X6 +X7 +X8 +X9 +factor(X10) +factor(X11) +X12 +X13 +X14 +X15 +X16 +X17)
 fit2 <- lm(Y ~ 1)
 
 stepAIC(fit2, direction = "both", scope = list(upper = fit1, lower = fit2))
 
-# Final model 
-fit = lm(Y ~ factor(X1) + X3 + X16 + X12 + X15)
-summary(fit)
+# Final model obtainded by stepAIC()
+fit = lm(Y ~ X3 + X12 + X15 + X8 + X7 + factor(X1) + X17)
+summary(fit)        # explanation of the data
 
 
 ## Multicolinearity --------------------------------
-summary(fit)
-ggpairs(subset(data, select = c(1, 2, 3, 10, 6, 13, 19)))
 
-# by looking at the correlation matrix, ext_temp and season are highly
+summary(fit)
+
+# VIF test : if one of the variables had a vif number close or more than 10, then that variable is problematic (multicolinearity)
+
+vif(fit) # remove whatever is the hightest predictor
+
+# using correlation matrix as well
+ggpairs(subset(data, select = c(1, 3, 15, 16, 6, 10, 14, 19)))
+# by looking at the correlation matrix, ext_temp and 1m_temp are highly
 # correlated and we decide to only keep one, which is ext_temp, since is has the higher correlation with brown fat
-fit = lm(Y ~ factor(X1) + X3 + X16 + X12) 
-summary(fit)
 
-# VIF test
+fit = lm(Y ~ X3 + X12 + X8 + X7 + factor(X1) + X17) 
+summary(fit) # explanation of the data
 
 
 # Effective data
-ed = data.frame(cbind(Age = X3, Sex = X1, Weigth = X16, Ext_Temp = X12, BrownFat = Y))
+ed = data.frame(cbind(Age = X3, Sex = X1, Size = X17, Ext_Temp = X12, Glycemy = X8, BMI = X7, BrownFat = Y))
 
 # Check for interaction terms
-fit.inter = lm(Y ~ (factor(X1) + X3 + X16 + X12)^2)
+fit.inter = lm(Y ~ (X3 + X12 + X8 + X7 + factor(X1) + X17)^2)
 anova(fit.inter)
-# interaction terms are not significant and seem to complicate the model, so we decide not to add them
-
+summary(fit.inter)
+# Choosing the ones acording to the p-value, we have a slightly better r-squared
+# setting the alpha to 0.05
+# Model obtained after interaction: 
+fit.inter = 
+summary(fit.inter)
 
 # Checking Assumptions ------------------------------------
 
