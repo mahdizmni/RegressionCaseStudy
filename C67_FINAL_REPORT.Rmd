@@ -1,0 +1,518 @@
+---
+title: "Investigating Models for Predicting the Presence of Brown Fat in Cancer Patients"
+date: 'STAC67: Final Project Report (December 5, 2022)'
+output:
+  word_document: default
+  pdf_document: default
+---
+
+### Authors: Group 8, and Respective Job Descriptions:
+
+• Mahdi Zamani (Student Number: 1006709714):
+
+Tasks included performed the creation of the  development of the model (in particular the development of the interaction terms, polynomial model and the selection of the final model), and model validation. Presented during the presentation.
+
+• Nikhil Lakhwani (Student Number: 1006914724):
+
+Tasks included the creation of the structure of the report, development of the presentation design, performed research on the background and context, and identified limitations and future extensions of the study. Presented during the presentation.
+
+
+• Manas Khandelwal (Student Number: 1006824153):
+
+Tasks included the dataset and topic selection, development of the model (in particular the development of the full model) and performed the data cleaning, and model diagnostics. 
+
+
+• Sauhaard Walia (Student Number: 1006726483): 
+
+Tasks included the writing the presentation, organising group meeting venues, and the exploratory data analysis and the conclusive remarks for the study, including the significance of the logistic regression model.
+
+
+### Abstract
+
+The presence of brown fat in cancer patients has seen to be one of the indicators for the identification of early-cancer patients. It provides healthcare professionals with a stronger predictor for particular cancers. This study explores investigates the presence of brown fat in cancer patients, and includes the building of a model. Within the study, 17 potentially related factors are considered, such as age and sex and size. R had been used to build a model, and later validated and analysed through statistical and to furthermore investigate the relationship between brown fat and the given influential factors. 
+
+\newpage
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library("readxl")
+library("GGally")
+library("ggplot2")
+library("MASS")
+library("ggstatsplot")
+library("car")
+library("ggpubr")
+library("olsrr")
+library("caret")
+library("tidyverse")
+library("lmtest")
+library("dplyr")
+
+data = read_excel('/Users/nikhillakhwani/Desktop/c67/project/RegressionCaseStudy/data/BrownFat.xls')
+```
+
+## Background and Significance 
+
+Brown fat, also known as adipose tissue, is defined to be a special type of body fat that is activated when one gets cold, helping the body maintain body temperature in colder conditions (Cleveland Clinic, 2022). The existence and the volume of brown fat are used within the healthcare industry as one of many predictors of diseases and illnesses. 
+
+In the United States alone in 2019, there have found to be 1,752,735 new cancer cases were reported and 599,589 people died of cancer (CDC, 2021). Healthcare professionals, such as doctors, are on the search for a predictor model in order to identify early-stage cancer patients, to prevent a large number of deaths that cancer causes. 
+
+Hence, this study builds a model for and investigates the probability of having brown fat in cancer patients. In doing so, the identification of a predictor model for doctors to be able to better identify and estimate the probability for an adult cancer patient, to have brown fat, could save numerous lives yearly. 
+
+Therefore, the goal of the study is to further develop and investigate the presence of brown fat in cancer patients and build a suitable model through statistical procedures. Additionally, through statistical procedures, study the data set, perform data cleaning, and verify the model through model validation, in hopes of arriving at a suitable conclusion. 
+
+```{r complete, echo=FALSE, include=FALSE}
+
+### Data cleaning------------------
+
+# Remove id, TSH (have lots of NA, so it would effect negatively if we let NA = 0), and total volume of brown fat: because we 
+# just want to predict its existence
+data = subset(data, select = -c(1, 21, 23))
+
+# Removing cancer status : redundant 
+data = subset(data, select = -c(18))
+
+
+# Descriptive statistics (For all variables)
+plot(data$Age, data$BrownFat)
+
+# ggplot(data, aes(x=Age)) + 
+#   geom_histogram(color="black", fill="red")
+
+summary(data$Age)
+
+
+### Removing outliers----------------------
+
+# boxplot(data$Sex)
+# 
+# boxplot(data$Diabetes)
+data <- data[-which(data$Diabetes %in% boxplot.stats(data$Diabetes)$out), ]
+# boxplot(data$Diabetes)
+# 
+# boxplot(data$Age)
+data <- data[-which(data$Age %in% boxplot.stats(data$Age)$out), ]
+# boxplot(data$Age)
+# 
+# boxplot(data$`7D_Temp`)
+data <- data[-which(data$`7D_Temp` %in% boxplot.stats(data$`7D_Temp`)$out), ]
+# boxplot(data$`7D_Temp`)
+# 
+# 
+# boxplot(data$Season, data = data)
+# 
+# boxplot(data$Duration_Sunshine, data = data)
+# 
+# boxplot(data$BMI, data = data)
+data <- data[-which(data$BMI %in% boxplot.stats(data$BMI)$out), ]
+# boxplot(data$BMI)
+# 
+# boxplot(data$Glycemy, data = data)
+data <- data[-which(data$Glycemy%in% boxplot.stats(data$Glycemy)$out), ]
+# boxplot(data$Glycemy)
+# 
+# boxplot(data$LBW, data = data)
+# 
+# boxplot(data$Ext_Temp, data = data)
+# 
+# boxplot(data$`2D_Temp`, data = data)
+# 
+# boxplot(data$`3D_Temp`, data = data)
+# 
+# boxplot(data$`1M_Temp`, data = data)
+# 
+# boxplot(data$Weigth, data = data)
+data <- data[-which(data$Weigth %in% boxplot.stats(data$Weigth)$out), ]
+# boxplot(data$Weigth)
+# 
+# boxplot(data$Size, data = data)
+data <- data[-which(data$Size %in% boxplot.stats(data$Size)$out), ]
+# boxplot(data$Size)
+
+
+### Train-test split--------------
+
+# Randomly Split the data into training and test set
+set.seed(1212)
+training.samples <- data$BrownFat %>%
+  createDataPartition(p = 0.70, list = FALSE)
+train.data  <- data[training.samples, ]
+test.data <- data[-training.samples, ]
+test.data = na.omit(test.data)
+train.data = na.omit(train.data)
+
+# Naming variables
+Y = train.data$BrownFat
+X1 = train.data$Sex
+X2 = train.data$Diabetes 
+X3 = train.data$Age 
+X4 = train.data$`7D_Temp`
+X5 = train.data$Season 
+X6 = train.data$Duration_Sunshine
+X7 = train.data$BMI 
+X8 = train.data$Glycemy 
+X9 = train.data$LBW 
+X10 = train.data$Cancer_Type 
+X11 = train.data$Month
+X12 = train.data$Ext_Temp
+X13 = train.data$`2D_Temp`
+X14 = train.data$`3D_Temp`
+X15 = train.data$`1M_Temp`
+X16 = train.data$Weigth
+X17 = train.data$Size
+
+
+### Model Selection--------------------------------
+
+# Check if a categorical variables has only one type, if yes, we remove since it's not effective and the lm() returns an error
+sapply(lapply(train.data, unique), length)
+
+# Since diabetes only has one level in our training set, we drop it
+
+# Full model (Description of the data and significance of t values)
+fit0 <- lm(Y ~ factor(X1) + X3 +X4 +factor(X5) +X6 +X7 +X8 +X9 +factor(X10) +factor(X11) +X12 +X13 +X14 +X15 +X16 +X17)
+
+# Summary(fit0)
+# Models to use for stepwise regression based on AIC(add explanation from lecture notes)
+
+fit1 <- lm(Y ~ factor(X1) + X3 + X4 +factor(X5) +X6 +X7 +X8 +X9 +factor(X10) +factor(X11) +X12 +X13 +X14 +X15 +X16 +X17)
+fit2 <- lm(Y ~ 1)
+
+stepAIC(fit2, direction = "both", scope = list(upper = fit1, lower = fit2))
+
+# Final model obtainded by stepAIC()
+fit = lm(Y ~ X3 + X12 + X15 + X8 + X7 + factor(X1) + X17)
+# summary(fit)        # explanation of the data by p-value and R-squared
+# qf(1 - 0.05, 7, 2703)
+# f-test : reject the null hypo
+
+## Multicolinearity --------------------------------
+
+# summary(fit)
+
+# VIF test : if one of the variables had a vif number close or more than 10, then that variable is problematic (multicolinearity)
+
+# vif(fit) # remove whatever is the highest predictor
+
+# using correlation matrix as well
+ggpairs(subset(data, select = c(1, 3, 15, 16, 6, 10, 14, 19)))
+# by looking at the correlation matrix, ext_temp and 1m_temp are highly
+# correlated and we decide to only keep one, which is ext_temp, since is has the higher correlation with brown fat
+
+fit = lm(Y ~ X3 + X12 + X8 + X7 + factor(X1) + X17) 
+# summary(fit) # explanation of the data
+
+
+# Effective data
+ed = data.frame(cbind(Age = X3, Sex = X1, Size = X17, Ext_Temp = X12, Glycemy = X8, BMI = X7, BrownFat = Y))
+
+# Check for interaction terms
+fit.inter = lm(Y ~ (X3 + X12 + X8 + X7 + factor(X1) + X17)^2)
+# anova(fit.inter)
+# summary(fit.inter)
+# qf(1 - 0.05, 21, 2689)
+# F-test : reject the null
+# we got slightly better R-squared in this one
+fit = fit.inter
+
+# Checking Assumptions ------------------------------------
+
+## Normality of errors
+res = resid(fit)
+
+#produce residual vs. fitted plot
+plot(fitted(fit), res)
+
+#add a horizontal line at 0 
+abline(0,0)
+
+## result : errors are not randomly spreaded (lec 6), violoates
+
+#create Q-Q plot for residuals
+qqnorm(res)
+
+#add a straight diagonal line to the plot
+qqline(res) 
+
+# plotting his of residuals
+hist(fit$residuals)
+# Looks like a left-tail normal
+
+## result : errors are not normally distributed
+
+# remedy: use box cox transformation
+
+# adding 1 to Y, to not get errors in box-cox, since we have 1/0 in calcluations,
+# we shift the response variables form {0, 1} to {1, 2}
+fit = lm(Y + 1 ~ (X3 + X12 + X8 + X7 + factor(X1) + X17)^2)  
+result = boxcox(fit)
+lambda = result$x[which.max(result$y)]
+# lambda = -2
+
+fit = lm(((Y+1) ^ lambda - 1)/lambda ~ (X3 + X12 + X8 + X7 + factor(X1) + X17)^2)
+# summary(fit)
+
+# rechecking assumptions to see if it got any better
+## Normality of errors
+res = resid(fit)
+
+#produce residual vs. fitted plot
+plot(fitted(fit), res)
+
+#add a horizontal line at 0 
+abline(0,0)
+
+## result : errors are not randomly spreader (lec 6), violoates
+
+#create Q-Q plot for residuals
+qqnorm(res)
+#add a straight diagonal line to the plot
+qqline(res) 
+
+# result : it did not get any better and box-cox did not work out
+
+
+# best model so far:
+# summary(fit)
+
+
+# Try Polynomial model--------------------
+# have to remove factor(X1), since it's categorical and can't be added to polynomial
+pm = lm(Y ~ polym(X3 , X12 , X8 , X7 , X17, degree=3, raw=TRUE))        # shift resoponse since 1/0 is undefined
+# summary(pm)
+# Multiple R-squared keep increasing as we increase the degree (danger of overfitting)
+# on degree2, our interaction model worked better, check r-squares
+
+
+
+## Checking for unequal variance
+ed$resid = rstandard(fit)
+# ggplot(data=ed, aes(X1, resid, col="red")) + geom_point() + geom_smooth(method = "lm", se=FALSE)
+# ggplot(data=ed, aes(X2, resid, col="red")) + geom_point() + geom_smooth(method = "lm", se=FALSE)
+# ggplot(data=ed, aes(X3, resid, col="red")) + geom_point() + geom_smooth(method = "lm", se=FALSE)
+# ggplot(data=ed, aes(X5, resid, col="red")) + geom_point() + geom_smooth(method = "lm", se=FALSE)
+# ggplot(data=ed, aes(X9, resid, col="red")) + geom_point() + geom_smooth(method = "lm", se=FALSE)
+# ggplot(data=ed, aes(X12, resid, col="red")) + geom_point() + geom_smooth(method = "lm", se=FALSE)
+# ggplot(data=ed, aes(X16, resid, col="red")) + geom_point() + geom_smooth(method = "lm", se=FALSE)
+
+# Test of equal variances
+bptest(fit)
+# result : p-value < 0.05, so we have unequal variances
+
+# remedy: Weighted Least Square Regression
+
+#define weights to use
+wt <- 1 / lm(abs(fit$residuals) ~ fit$fitted.values)$fitted.values^2
+# 
+wls_fit <- lm(Y ~ (Age + Ext_Temp + Glycemy + BMI + Sex + Size)^2,  data = train.data, weights=wt)
+
+summary(wls_fit)
+
+# Result : wow! we got 0.602 R-squared
+
+# Final Model : is the weighted least squares model with interaction terms
+# lm(Y ~ (X3 + X12 + X8 + X7 + factor(X1) + X17)^2,  weights=wt
+
+fit = wls_fit
+
+# Prediction on test set----------------------
+
+# Selecting chosen predictors from test data
+test = data.frame(test.data[, c(3, 6, 16, 15, 1, 14)])
+# Prediction
+prediction = predict(fit, newdata = test) 
+
+# changing the type of prediction (it's a technical thing, no need to mention)
+prediction = unname(prediction)
+
+# if the predicted value is < 1/2, we label it as 0, otherwise 1
+prediction[prediction < 0.5] = 0
+prediction[prediction >= 0.5] = 1
+
+# Testing on the testing set
+# data.frame( R2 = R2(prediction, test.data$BrownFat),
+#             RMSE = RMSE(prediction, test.data$BrownFat),
+#             MAE = MAE(prediction, test.data$BrownFat))
+            
+# As we can see our prediction is not good, one reason could be the model that we selected.
+# Since our target (response) variable is binary, the linear regression loss function penalizes us, even if we make a high confidential decision.
+# the better approach would be to use a logistic regression model.
+# Implementing logistic regression model
+
+lfit = glm(BrownFat ~ Age + Ext_Temp + Glycemy + BMI + Sex + Size,  data = train.data)
+
+# lprediction = predict(fit, newdata = test)
+# lprediction[lprediction < 0.5] = 0
+# lprediction[lprediction >= 0.5] = 1
+# 
+# data.frame( R2 = R2(lprediction, test.data$BrownFat),
+#             RMSE = RMSE(lprediction, test.data$BrownFat),
+#             MAE = MAE(lprediction, test.data$BrownFat))
+```
+
+## Exploratory Data Analysis
+
+We utilized training test split which is a model which conducts a validation process which as a result enables you to gain an understanding and simulate how your created model would respond to and perform new data. This training test split is essential for making sure that the model we are creating is generating an unbiased evaluation of a prediction and would still be valid should our data set which are working with changes.
+
+Below can be found a list of the variables:
+
+Brown Fat (Y): It is a qualitative variable which is 1 if the subject has brown fat and 0 if they don’t.
+
+Sex (X1): It is a qualitative variable which is 1 if the subject is female and 2 if it’s male.
+
+Diabetes (X2): It is a qualitative variable which is 1 if the subject has diabetes and 0 if they don’t.
+
+Age (X3): It is a quantitative variable which is the age of the subject with a mean of 62.17 and median of 63.17.
+
+7D_Temp (X4): It is a quantitative variable which is the average of the past 7 days’ temperature with a median of 6.110 and a mean 4.204
+
+Season (X5): It’s a qualitative variable which is 1 if the season is spring, 2 if it’s summer, 3 if it’s autumn and 4 if the season is winter.
+
+Duration Sunshine (X6): It’s a quantitative variable which is the sunshine duration median of 725.7 and a mean of 731.2.
+
+BMI (X7): It is a quantitative variable which is the Body Mass Index of the subject with a median of 25.32 and a mean of 25.65.
+
+Glycemy (X8):  It is a quantitative variable which tells us the amount of glucose in the body of the subject with a median of 5.6 and a mean of 5.75.
+
+LBW (X9): It is a quantitative variable which is the Lean body mass of the subject with a median of 49.48 and a mean of 50.94.
+
+Cancer Type (X10):  It is a qualitative variable which is 0 if the subject does not have cancer, 1 if the subject has lung cancer, 2 if digestive, 3 if Oto-Rhino-Laryngology, 4 if breast, 5 if gynecological, 6 if genital(male), 7 if urothelial, 8 if kidney, 9 if the brain, 10 if skin, 11 if thyroid, 12 if prostate, 13 if non-Hodgkin lymphoma, 14 if Hodgkin, 15 if Kaposi, 16 if Myeloma, 17 if leukemia and 18 if another type of cancer.
+
+Month (X11): It is a qualitative variable which tells us the month of the exam.
+
+Ext Temp (X12): It is a quantitative variable which is the external temperature with a mean of 6.248 and median of 7.3.
+
+2D_Temp (X13): It is a quantitative variable which is the average of the past 2 days’ temperature mean of 4.228 and median of 5.550.
+
+3D_Temp (X14): It is a quantitative variable which is the average of the past 3 days’ temperature mean of 4.332 and median of 5.400.
+
+1M_Temp (X15): It is a quantitative variable which is the average of the past Month’s temperature mean of 6.248 and median of 5.73.
+
+Weight (X16): It is a quantitative variable which is the Weight of the subject with a median of 71 and a mean of 73.21.
+
+Size (X17): It is a quantitative variable which is the height of the subject with a median of 165 and a mean of 165.5.
+
+
+```{r, echo=FALSE}
+ggpairs(subset(data, select = c(1, 3, 15, 16, 6, 10, 14, 19)))
+```
+
+After, data cleaning had been performed to ensure that the data set is suitable to be used for building the model. This had been done by the removal of any outliers, focusing solely on cancer patients, removed any data rows containing "N/A". Additionally, there were several variables that were removed since it is inapplicable to the construction of our model. This includes the removal of ID, the volume of brown fat (since we are focusing solely on the presence of brown fat). 
+
+
+## Model
+
+First, we built our full model. A full model is a statistical representation that includes all of the variables of interest, or all of the main parameters (e.g., regression coefficients), among a set of variables (APA, 2019). The performance of our full model had appeared to be weak, since it did include all of our variables prior to any form of optimization. Hence, we decided to work further and incorporate the use of Stepwise AIC, found within lecture material, to select only the effective variables to be included in our model. 
+
+```{r}
+# Full model (Description of the data and significance of t values)
+fit0 <- lm(Y ~ factor(X1) + X3 +X4 +factor(X5) +X6 +X7 +X8 +X9 +factor(X10) +factor(X11) +X12 +X13 +X14 +X15 +X16 +X17)
+
+# Models to use for stepwise regression based on AIC
+fit1 <- lm(Y ~ factor(X1) + X3 + X4 +factor(X5) +X6 +X7 +X8 +X9 +factor(X10) +factor(X11) +X12 +X13 +X14 +X15 +X16 +X17)
+fit2 <- lm(Y ~ 1)
+
+# Final model obtainded by stepAIC()
+fit = lm(Y ~ X3 + X12 + X15 + X8 + X7 + factor(X1) + X17)
+```
+
+Our second model, with the incorporation of Stepwise AIC had proven to be more successful than our full model. We then consider the use of interaction terms to enhance our model.
+
+```{r}
+# Effective data
+ed = data.frame(cbind(Age = X3, Sex = X1, Size = X17, Ext_Temp = X12, Glycemy = X8, BMI = X7, BrownFat = Y))
+
+# Check for interaction terms
+fit.inter = lm(Y ~ (X3 + X12 + X8 + X7 + factor(X1) + X17)^2)
+```
+
+However, there is a possibility that there still exists an underlying relationship within the predictor variables at hand. Hence, a study must be conducted on the multicollinearity of the variables at hand. Multicollinearity is the occurrence of high intercorrelations among two or more independent variables in a multiple regression model (Hayes, 2022). We do this to improve the accuracy of our model and optimize against any form of redundancies. 
+
+Additionally, as an extension, we built a polynomial model for which could be suitable to model the data. However, we note that the multiple R-squared increases as we increase the degree, where we experience the danger of overfitting. 
+
+```{r}
+pm = lm(Y ~ polym(X3 , X12 , X8 , X7 , X17, degree=3, raw=TRUE))
+```
+
+Finally, we have arrived upon our final model, utilizing Weighted Least Square Regression (WLS) and interaction terms. Weighted Least Squares is an extension of Ordinary Least Squares regression such that non-negative constants (weights) are attached to data points (Stephanie, 2016).
+
+```{r}
+# Final Model : is the weighted least squares model with interaction terms
+# lm(Y ~ (X3 + X12 + X8 + X7 + factor(X1) + X17)^2,  weights=wt
+wt <- 1 / lm(abs(fit$residuals) ~ fit$fitted.values)$fitted.values^2
+wls_fit <- lm(Y ~ (Age + Ext_Temp + Glycemy + BMI + Sex + Size)^2,  data = train.data, weights=wt)
+summary(wls_fit)
+```
+
+The WLS model had been selected as the final model due to its improved performance compared to the other models. 
+To check for our linear assumptions, we conducted the following procedures:
+
+```{r}
+#create Q-Q plot for residuals
+qqnorm(res)
+#add a straight diagonal line to the plot
+qqline(res) 
+```
+
+The Normal Q-Q Plot of the residuals show that the majority of the observations are not on the line, and the normality assumption does not hold. 
+
+```{r}
+plot(fitted(fit), res)
+abline(0,0)
+```
+
+From the residuals, we see that they are not randomly or evenly distributed, and there are indications that a linear assumptions are being violated. We also do a test for unequal variances.
+
+```{r}
+# Test of equal variances:
+bptest(fit)
+```
+
+We also perform a test of equal variances, and since our obtained p-value is less than 0.05, it is shown that we have unequal variances. For model validation, we performed the following.
+
+```{r, echo=FALSE}
+data.frame( R2 = R2(prediction, test.data$BrownFat),
+            RMSE = RMSE(prediction, test.data$BrownFat),
+            MAE = MAE(prediction, test.data$BrownFat))
+```
+
+We know R-squared (R^2) is a measure that represents the proportion of the variance for a dependent variable that's described by an independent variable/s in a regression model (Fernando, 2022). From our study, we are able to see that our R^2 value is 0.0001792427 hence we identify our independent variable is not explaining much in the variation of our dependent variable.
+
+Furthermore, we know that root-mean-square error or RMSE represents the square root of the variance of the residuals. It helps us be able to see the absolute fit of the model we are working with to the data and how close the observed data are to the actual model's predicted values (Grace, 2022). In our study, we saw that the RMSE value is: 0.3582424 which is in an acceptable range. In our data, we saw that our MAE value was 0.1283376 which is also not bad.
+
+## Discussion / Conclusion
+
+The goal of the study was to effectively build a model for the prediction of the existence of brown fat in cancer patients, and investigate its relationship. During the study, we found the following variables to be the most effective predictive variables: using the statistical procedures found above. Our key findings are that the prediction is not great and our linear assumptions do not hold.
+
+Since our target (response) variable is binary, the linear regression loss function penalizes us, even if we make a highly confidential decision. The better approach would be to use a logistic regression model. An alternative approach would be implementing a logistic regression model. Logistic regression is the process of estimating the parameters of a logistic model. This would serve as the perfect extension for our study. However, even after conducting a linear regression model interestingly, we would see that the prediction remained the same. Therefore we can conclude that Linear regression and logistic regression are not good models for the prediction of this data. As a result of both the tests giving us the same prediction, we are able to conclude that the data is entirely not linearly separable. 
+
+[Optional & Extension]: An implementation of the logistical regression model can be seen below, yet does not hold a strong performance
+
+```{r}
+lfit = glm(BrownFat ~ Age + Ext_Temp + Glycemy + BMI + Sex + Size,  data = train.data)
+```
+
+Our findings have impacted the field by identifying that no true relationship exists with brown fat and existing cancer patients, and can provide insights to healthcare professionals regarding this feat. This study can introduce the consideration of other areas, and has the following limitations.
+
+From our study, we are able to see that we had 4 main limitations. The first one is that we have a low coefficient of determination and power. Furthermore, we also observed a lack of Geographical region for which the data has been recorded, which can lead to inconsistencies for the season. Additionally, in the data set we were provided there was no consideration for Blood type. Finally, a major limitation that we had was that in our data set some cancer types have significantly fewer data entries than others, which could have led to inconsistencies in our study.
+
+For future extensions, there are two potential routes we saw we could take. The first future expansion we could conduct is that we could have investigated the relationship between brown fat and other diseases not limited to cancer types, to validate whether there exists only a strong relationship with cancer or if there are others. Furthermore another aspect to consider for future expansion would be to explore data for particular demographics and/or DNA types for more accurate predictions.
+
+
+## References
+
+APA. (2019). APA Dictionary of Psychology. Retrieved December 6, 2022, from dictionary.apa.org website: https://dictionary.apa.org/full-model
+
+CDC. (2021, December 1). Cancer Data and Statistics | CDC. Retrieved from www.cdc.gov website: https://www.cdc.gov/cancer/dcpc/data/index.htm#:~:text=In%20the%20United%20States%20in
+
+Cleveland Clinic. (2022). Brown Fat, Brown Adipose Tissue: What It Is & What It Means. Retrieved from Cleveland Clinic website: https://my.clevelandclinic.org/health/body/24015-brown-fat
+
+Fernando, J. (2022). R-Squared Formula, Regression, and Interpretations. Investopedia. Retrieved December 5, 2022, from https://www.investopedia.com/terms/r/r-squared.asp
+
+Grace, K. (2022). Measures of Model Fit for Linear Regression Models. The Analysis Factor. Retrieved December 5, 2022, from https://www.theanalysisfactor.com/assessing-the-fit-of-regression-models/
+
+Hayes, A. (2022). Multicollinearity. Retrieved from Investopedia website: https://www.investopedia.com/terms/m/multicollinearity.asp
+
+Stephanie. (2016, February 25). Weighted Least Squares: Simple Definition, Advantages & Disadvantages. Retrieved from Statistics How To website: https://www.statisticshowto.com/weighted-least-squares/
+
+
